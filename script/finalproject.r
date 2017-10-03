@@ -1,4 +1,3 @@
-for(i in 1:10) {
   #Load the binary data of MNIST dataset
 load_image_file <- function(filename) {
   ret = list()
@@ -20,6 +19,7 @@ load_label_file <- function(filename) {
   close(f)
   y
 }
+
 #Load train and test data
 train_data <- load_image_file("train-images.idx3-ubyte")
 test_data <- load_image_file('t10k-images.idx3-ubyte')
@@ -27,12 +27,13 @@ test_data <- load_image_file('t10k-images.idx3-ubyte')
 train_label <- load_label_file('train-labels.idx1-ubyte')
 test_label <- load_label_file('t10k-labels.idx1-ubyte')
 
+#library R function of mxnet, methods
 library(mxnet)
 library(methods)
 
 train <- data.matrix(train_data[[2]])
 test <- data.matrix(test_data[[2]])
-
+  
 train <- as.data.frame(train)
 train_label <- as.data.frame(train_label)
 train_all <- cbind(train_label,train)
@@ -50,6 +51,40 @@ train_part_y <- as.integer(train_part_y)
 
 train.x <- t(train_part_x/255)
 test <- t(test/255)
+
+#Method 1 Configure the structure of the network
+data <- mx.symbol.Variable("data")
+fc1 <- mx.symbol.FullyConnected(data, name="fc1", num_hidden=1024)
+act1 <- mx.symbol.Activation(fc1, name="relu1", act_type="relu")
+fc2 <- mx.symbol.FullyConnected(act1, name="fc2", num_hidden=512)
+act2 <- mx.symbol.Activation(fc2, name="relu2", act_type="relu")
+fc3 <- mx.symbol.FullyConnected(act2, name="fc3", num_hidden=256)
+
+
+softmax <- mx.symbol.SoftmaxOutput(fc3, name="sm")
+
+#Choose CPU as the device
+device.cpu <- mx.cpu()
+#Train the neural network
+mx.set.seed(0)
+model1 <- mx.model.FeedForward.create(softmax, X=train.x, y=train_part_y,
+                                                ctx=device.cpu, num.round=20, array.batch.size=100,
+                                                learning.rate=0.1, momentum=0.9,  eval.metric=mx.metric.accuracy,
+                                                initializer=mx.init.uniform(0.1),
+                                                epoch.end.callback=mx.callback.log.train.metric(100))
+#Make the prediction 1
+preds1 <- predict(model1, test)
+pred.label1 <- max.col(t(preds1)) - 1
+    
+#Confusion matrix and accuracy
+table(pred.label1,test_label)
+correct1 <- sum(pred.label1==test_label)
+accuracy1 <- correct1/ncol(test)
+print(accuracy1)
+    
+FOM <- 0.06/2+(1-accuracy1)
+print(FOM)
+
 
 
 #Method 2: LeNet
@@ -105,4 +140,3 @@ FOM= 0.1*i/2 + (1-accuracy2)
 print(FOM)
 
 rm(list=ls())
-}
