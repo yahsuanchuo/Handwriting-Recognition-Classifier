@@ -1,1 +1,1 @@
-# Handwriting-Recognition-Classifier
+# Handwriting Recognition Classifier
